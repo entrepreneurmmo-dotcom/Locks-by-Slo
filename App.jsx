@@ -1,31 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Crown, Calendar, Plus, Trash2, X, Clock, Phone, ChevronLeft, ChevronRight, Euro, Sparkles, Check, Image as ImageIcon, Video, Link as LinkIcon, Play, CreditCard, Share2, Copy, Send, ShieldCheck, ChevronDown, LogOut, Lock, User, UserPlus, AlertTriangle, Hourglass, Menu, BarChart2, Download, FileSpreadsheet } from "lucide-react";
 import * as XLSX from "xlsx";
+import storage from "./storage.js";
 
-// ── localStorage adapter (remplace window.storage de Claude) ──────
-const storage = {
-  async get(key) {
-    try {
-      const val = localStorage.getItem(key);
-      return val ? { value: val } : null;
-    } catch { return null; }
-  },
-  async set(key, value) {
-    try { localStorage.setItem(key, value); return true; } catch { return null; }
-  },
-  async delete(key) {
-    try { localStorage.removeItem(key); return true; } catch { return null; }
-  },
-  async list(prefix) {
-    try {
-      const keys = Object.keys(localStorage).filter(k => k.startsWith(prefix));
-      return { keys };
-    } catch { return { keys: [] }; }
-  },
-};
-// Remplace window.storage partout
 if (typeof window !== "undefined") window.storage = storage;
-
 
 // ── Responsive hook ───────────────────────────────────────────────
 function useResponsive() {
