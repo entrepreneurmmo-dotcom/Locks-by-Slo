@@ -119,18 +119,27 @@ const ADMIN_USERNAME = "SloLocks";
 const ADMIN_PASSWORD = "Slohairs971";
 
 export default function App() {
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState(() => {
+    try {
+      const saved = localStorage.getItem("lbs_session");
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
 
-  const login = (s) => setSession(s);
-  const logout = () => setSession(null);
+  const login = (s) => {
+    setSession(s);
+    try { localStorage.setItem("lbs_session", JSON.stringify(s)); } catch {}
+  };
+
+  const logout = () => {
+    setSession(null);
+    try { localStorage.removeItem("lbs_session"); } catch {}
+  };
 
   if (!session) return <AuthScreen onLogin={login} />;
   if (session.role === "admin") return <AdminApp onLogout={logout} />;
   return <ClientApp session={session} onLogout={logout} />;
 }
-
-
-
 function AdminApp({ onLogout }) {
   const { isDesktop } = useResponsive();
   const [appointments, setAppointments] = useState([]);
