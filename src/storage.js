@@ -1,4 +1,3 @@
-// ── Supabase storage adapter ──────────────────────────────────────
 const SUPABASE_URL = "https://xgopcleadkpogwnnjnvw.supabase.co";
 const SUPABASE_KEY = "sb_publishable_6zcAnoBJpMfgsP94NOjIzA_AphqR0L_";
 
@@ -11,9 +10,10 @@ const headers = {
 const storage = {
   async get(key) {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/kv_store?key=eq.${encodeURIComponent(key)}&select=value`, { headers });
+      const url = `${SUPABASE_URL}/rest/v1/kv_store?key=eq.${encodeURIComponent(key)}&select=value&limit=1`;
+      const res = await fetch(url, { headers });
       const data = await res.json();
-      if (data && data.length > 0) return { value: data[0].value };
+      if (Array.isArray(data) && data.length > 0) return { value: data[0].value };
       return null;
     } catch { return null; }
   },
@@ -22,7 +22,7 @@ const storage = {
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/kv_store`, {
         method: "POST",
-        headers: { ...headers, "Prefer": "resolution=merge-duplicates" },
+        headers: { ...headers, "Prefer": "resolution=merge-duplicates,return=minimal" },
         body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
       });
       return res.ok;
@@ -41,9 +41,12 @@ const storage = {
 
   async list(prefix) {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/kv_store?key=like.${encodeURIComponent(prefix)}*&select=key`, { headers });
+      // Fetch ALL keys and filter client-side — méthode la plus fiable
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/kv_store?select=key&order=key`, { headers });
       const data = await res.json();
-      if (data && Array.isArray(data)) return { keys: data.map(d => d.key) };
+      if (Array.isArray(data)) {
+        return { keys: data.map(d => d.key).filter(k => k.startsWith(prefix)) };
+      }
       return { keys: [] };
     } catch { return { keys: [] }; }
   },
