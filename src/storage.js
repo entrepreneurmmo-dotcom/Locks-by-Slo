@@ -10,8 +10,10 @@ const headers = {
 const storage = {
   async get(key) {
     try {
-      const url = `${SUPABASE_URL}/rest/v1/kv_store?key=eq.${encodeURIComponent(key)}&select=value&limit=1`;
-      const res = await fetch(url, { headers });
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/kv_store?key=eq.${encodeURIComponent(key)}&select=value&limit=1`,
+        { headers }
+      );
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) return { value: data[0].value };
       return null;
@@ -31,18 +33,20 @@ const storage = {
 
   async delete(key) {
     try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/kv_store?key=eq.${encodeURIComponent(key)}`, {
-        method: "DELETE",
-        headers,
-      });
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/kv_store?key=eq.${encodeURIComponent(key)}`,
+        { method: "DELETE", headers }
+      );
       return res.ok;
     } catch { return null; }
   },
 
   async list(prefix) {
     try {
-      // Fetch ALL keys and filter client-side — méthode la plus fiable
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/kv_store?select=key&order=key`, { headers });
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/kv_store?select=key&order=key`,
+        { headers }
+      );
       const data = await res.json();
       if (Array.isArray(data)) {
         return { keys: data.map(d => d.key).filter(k => k.startsWith(prefix)) };
@@ -53,3 +57,4 @@ const storage = {
 };
 
 export default storage;
+if (typeof window !== "undefined") window.storage = storage;
