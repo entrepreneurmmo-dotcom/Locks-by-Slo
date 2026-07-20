@@ -5,14 +5,6 @@ import storage from "./storage.js";
 
 if (typeof window !== "undefined") window.storage = storage;
 
-// ── Password validation ───────────────────────────────────────────
-function validatePassword(pwd) {
-  if (pwd.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
-  if (!/[a-zA-Z]/.test(pwd)) return "Le mot de passe doit contenir au moins une lettre.";
-  if (!/[0-9]/.test(pwd)) return "Le mot de passe doit contenir au moins un chiffre.";
-  return null;
-}
-
 function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 function isPhone(v) { return /^[0-9+\s]{6,}$/.test(v.replace(/\s/g, "")); }
 
