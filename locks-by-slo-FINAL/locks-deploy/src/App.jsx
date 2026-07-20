@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+ import React, { useState, useEffect, useCallback } from "react";
 import { Crown, Calendar, Plus, Trash2, X, Clock, Phone, ChevronLeft, ChevronRight, Euro, Sparkles, Check, Image as ImageIcon, Video, Link as LinkIcon, Play, CreditCard, Share2, Copy, Send, ShieldCheck, ChevronDown, LogOut, Lock, User, UserPlus, AlertTriangle, Hourglass, Menu, BarChart2, Download, FileSpreadsheet, Mail, KeyRound, Eye, EyeOff, RefreshCw } from "lucide-react";
 import * as XLSX from "xlsx";
 import storage from "./storage.js";
@@ -1374,15 +1374,6 @@ async function findAdminAccount() {
 async function saveAdminAccount(account) {
   try { await window.storage.set("auth:admin", JSON.stringify(account)); return true; } catch { return false; }
 }
-
-function validatePassword(pwd) {
-  if (pwd.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
-  if (!/[a-zA-Z]/.test(pwd)) return "Le mot de passe doit contenir au moins 1 lettre.";
-  if (!/[0-9]/.test(pwd)) return "Le mot de passe doit contenir au moins 1 chiffre.";
-  return null;
-}
-
-function isEmail(val) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val); }
 
 async function findClientByIdentifier(identifier) {
   const norm = normalizePhone(identifier);
