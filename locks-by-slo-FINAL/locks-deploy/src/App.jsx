@@ -8,6 +8,8 @@ if (typeof window !== "undefined") window.storage = storage;
 function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 function isPhone(v) { return /^[0-9+\s]{6,}$/.test(v.replace(/\s/g, "")); }
 
+async function findClientByIdentifier(identifier) {
+
 // ── Responsive hook ───────────────────────────────────────────────
 function useResponsive() {
   const [width, setWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 768);
