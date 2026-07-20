@@ -1,14 +1,20 @@
- import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Crown, Calendar, Plus, Trash2, X, Clock, Phone, ChevronLeft, ChevronRight, Euro, Sparkles, Check, Image as ImageIcon, Video, Link as LinkIcon, Play, CreditCard, Share2, Copy, Send, ShieldCheck, ChevronDown, LogOut, Lock, User, UserPlus, AlertTriangle, Hourglass, Menu, BarChart2, Download, FileSpreadsheet, Mail, KeyRound, Eye, EyeOff, RefreshCw } from "lucide-react";
 import * as XLSX from "xlsx";
 import storage from "./storage.js";
 
 if (typeof window !== "undefined") window.storage = storage;
 
+// ── Password validation ───────────────────────────────────────────
+function validatePassword(pwd) {
+  if (pwd.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
+  if (!/[a-zA-Z]/.test(pwd)) return "Le mot de passe doit contenir au moins une lettre.";
+  if (!/[0-9]/.test(pwd)) return "Le mot de passe doit contenir au moins un chiffre.";
+  return null;
+}
+
 function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 function isPhone(v) { return /^[0-9+\s]{6,}$/.test(v.replace(/\s/g, "")); }
-
-async function findClientByIdentifier(identifier) {
 
 // ── Responsive hook ───────────────────────────────────────────────
 function useResponsive() {
