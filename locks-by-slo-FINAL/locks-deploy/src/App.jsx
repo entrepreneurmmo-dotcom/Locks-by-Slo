@@ -1,11 +1,20 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Crown, Calendar, Plus, Trash2, X, Clock, Phone, ChevronLeft, ChevronRight, Euro, Sparkles, Check, Image as ImageIcon, Video, Link as LinkIcon, Play, CreditCard, Share2, Copy, Send, ShieldCheck, ChevronDown, LogOut, Lock, User, UserPlus, AlertTriangle, Hourglass, Menu, BarChart2, Download, FileSpreadsheet } from "lucide-react";
+import { Crown, Calendar, Plus, Trash2, X, Clock, Phone, ChevronLeft, ChevronRight, Euro, Sparkles, Check, Image as ImageIcon, Video, Link as LinkIcon, Play, CreditCard, Share2, Copy, Send, ShieldCheck, ChevronDown, LogOut, Lock, User, UserPlus, AlertTriangle, Hourglass, Menu, BarChart2, Download, FileSpreadsheet, Mail, KeyRound, Eye, EyeOff, RefreshCw } from "lucide-react";
 import * as XLSX from "xlsx";
 import storage from "./storage.js";
 
-// Expose storage globalement
 if (typeof window !== "undefined") window.storage = storage;
 
+// ── Password validation ───────────────────────────────────────────
+function validatePassword(pwd) {
+  if (pwd.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
+  if (!/[a-zA-Z]/.test(pwd)) return "Le mot de passe doit contenir au moins une lettre.";
+  if (!/[0-9]/.test(pwd)) return "Le mot de passe doit contenir au moins un chiffre.";
+  return null;
+}
+
+function isEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+function isPhone(v) { return /^[0-9+\s]{6,}$/.test(v.replace(/\s/g, "")); }
 
 // ── Responsive hook ───────────────────────────────────────────────
 function useResponsive() {
@@ -1169,6 +1178,12 @@ function TarifsView({ isAdmin = false }) {
 function PaiementView({ settings, onSave, loaded }) {
   const [form, setForm] = useState(settings);
   const [saved, setSaved] = useState(false);
+  // Admin password change
+  const [oldPwd, setOldPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [newPwd2, setNewPwd2] = useState("");
+  const [pwdMsg, setPwdMsg] = useState("");
+  const [pwdOk, setPwdOk] = useState(false);
 
   useEffect(() => { setForm(settings); }, [settings]);
 
@@ -1178,6 +1193,31 @@ function PaiementView({ settings, onSave, loaded }) {
     onSave(form);
     setSaved(true);
     setTimeout(() => setSaved(false), 1800);
+  };
+
+  const changeAdminPassword = async () => {
+    setPwdMsg(""); setPwdOk(false);
+    if (!oldPwd || !newPwd || !newPwd2) { setPwdMsg("Remplis tous les champs."); return; }
+    // Verify old password
+    const isDefaultPwd = (oldPwd === ADMIN_PASSWORD);
+    let customMatch = false;
+    try {
+      const r = await window.storage.get("auth:admin:custom");
+      if (r) {
+        const acc = JSON.parse(r.value);
+        const h = await hashPassword(oldPwd);
+        if (acc.passHash === h) customMatch = true;
+      }
+    } catch (e) {}
+    if (!isDefaultPwd && !customMatch) { setPwdMsg("Ancien mot de passe incorrect."); return; }
+    const pwdErr = validatePassword(newPwd);
+    if (pwdErr) { setPwdMsg(pwdErr); return; }
+    if (newPwd !== newPwd2) { setPwdMsg("Les nouveaux mots de passe ne correspondent pas."); return; }
+    const passHash = await hashPassword(newPwd);
+    await window.storage.set("auth:admin:custom", JSON.stringify({ username: ADMIN_USERNAME, passHash }));
+    setPwdOk(true);
+    setPwdMsg("Mot de passe changé avec succès !");
+    setOldPwd(""); setNewPwd(""); setNewPwd2("");
   };
 
   const copyLink = async (val) => {
@@ -1279,6 +1319,41 @@ function PaiementView({ settings, onSave, loaded }) {
       <div style={{ marginTop: 16, padding: "12px 14px", border: "1px dashed #2a2418", borderRadius: 11, fontSize: 11.5, color: TEXT_MUTED, lineHeight: 1.5 }}>
         Astuce : ouvre un rendez-vous dans l'onglet Rendez-vous et appuie sur la flèche pour renseigner l'acompte et envoyer la confirmation de paiement à la cliente.
       </div>
+
+      {/* Admin password change */}
+      <div style={{ marginTop: 20, background: BG2, border: `1px solid ${BORDER}`, borderRadius: 13, padding: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 14 }}>
+          <KeyRound size={15} color={GOLD} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: TEXT }}>Changer mon mot de passe admin</span>
+        </div>
+        <Field label="Ancien mot de passe">
+          <input type="password" value={oldPwd} onChange={(e) => setOldPwd(e.target.value)} placeholder="••••••••" style={inputStyle} />
+        </Field>
+        <Field label="Nouveau mot de passe">
+          <input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="8 car. min, 1 lettre, 1 chiffre" style={inputStyle} />
+          {newPwd && (() => { const e = validatePassword(newPwd); return <div style={{ fontSize: 11, marginTop: 3, color: e ? "#f0a030" : "#9fe0ad" }}>{e || "Mot de passe fort ✓"}</div>; })()}
+        </Field>
+        <Field label="Confirmer le nouveau mot de passe">
+          <input type="password" value={newPwd2} onChange={(e) => setNewPwd2(e.target.value)} placeholder="••••••••" style={inputStyle} />
+        </Field>
+        {pwdMsg && (
+          <div style={{ fontSize: 12, padding: "8px 10px", borderRadius: 8, marginBottom: 10,
+            color: pwdOk ? "#9fe0ad" : "#f3b8b8",
+            background: pwdOk ? "rgba(63,155,90,0.15)" : "#2a1414",
+            border: `1px solid ${pwdOk ? "#2d6a3f" : "#4a2020"}`,
+          }}>
+            {pwdOk ? "✅" : "⚠️"} {pwdMsg}
+          </div>
+        )}
+        <button className="btn" onClick={changeAdminPassword} style={{
+          width: "100%", padding: "11px", borderRadius: 10,
+          background: "rgba(201,162,89,0.15)", color: GOLD_LIGHT,
+          border: `1px solid ${GOLD}`, fontWeight: 700, fontSize: 13,
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+        }}>
+          <KeyRound size={15} /> Changer le mot de passe
+        </button>
+      </div>
     </div>
   );
 }
@@ -1296,8 +1371,22 @@ async function findAdminAccount() {
   }
 }
 
-async function findClientByPhone(phone) {
-  const target = normalizePhone(phone);
+async function saveAdminAccount(account) {
+  try { await window.storage.set("auth:admin", JSON.stringify(account)); return true; } catch { return false; }
+}
+
+function validatePassword(pwd) {
+  if (pwd.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
+  if (!/[a-zA-Z]/.test(pwd)) return "Le mot de passe doit contenir au moins 1 lettre.";
+  if (!/[0-9]/.test(pwd)) return "Le mot de passe doit contenir au moins 1 chiffre.";
+  return null;
+}
+
+function isEmail(val) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val); }
+
+async function findClientByIdentifier(identifier) {
+  const norm = normalizePhone(identifier);
+  const normEmail = identifier.trim().toLowerCase();
   try {
     const res = await window.storage.list("auth:client:");
     if (!res || !res.keys) return null;
@@ -1306,7 +1395,8 @@ async function findClientByPhone(phone) {
         const r = await window.storage.get(k);
         if (r) {
           const rec = JSON.parse(r.value);
-          if (normalizePhone(rec.phone) === target) return rec;
+          if (normalizePhone(rec.phone) === norm) return rec;
+          if (rec.email && rec.email.toLowerCase() === normEmail) return rec;
         }
       } catch (e) {}
     }
@@ -1314,54 +1404,88 @@ async function findClientByPhone(phone) {
   return null;
 }
 
+// Keep old name for compatibility
+const findClientByPhone = findClientByIdentifier;
+
 function AuthScreen({ onLogin }) {
   const { isDesktop } = useResponsive();
   const [role, setRole] = useState("client");
-  const [mode, setMode] = useState("login"); // login | signup (client only)
+  const [mode, setMode] = useState("login"); // login | signup | forgot
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [username, setUsername] = useState("");
+  const [identifier, setIdentifier] = useState(""); // phone or email for client
+  const [username, setUsername] = useState(""); // admin
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const switchRole = (r) => { setRole(r); setError(""); setMode("login"); };
+  const switchRole = (r) => { setRole(r); setError(""); setSuccess(""); setMode("login"); };
 
-  const submitAdmin = () => {
-    setError("");
+  // Password strength indicator
+  const pwdStrength = () => {
+    if (!password) return null;
+    const errs = [];
+    if (password.length < 8) errs.push("8 caractères min");
+    if (!/[a-zA-Z]/.test(password)) errs.push("1 lettre");
+    if (!/[0-9]/.test(password)) errs.push("1 chiffre");
+    if (errs.length === 0) return { ok: true, msg: "Mot de passe fort ✓" };
+    return { ok: false, msg: `Manque : ${errs.join(", ")}` };
+  };
+
+  const submitAdmin = async () => {
+    setError(""); setSuccess("");
     if (!username.trim() || !password) { setError("Remplis tous les champs."); return; }
+    // Check hardcoded first
     if (username.trim() === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      onLogin({ role: "admin", id: "admin", name: ADMIN_USERNAME });
-    } else {
-      setError("Identifiant ou mot de passe incorrect.");
+      onLogin({ role: "admin", id: "admin", name: ADMIN_USERNAME }); return;
     }
+    // Check stored custom password
+    try {
+      const r = await window.storage.get("auth:admin:custom");
+      if (r) {
+        const acc = JSON.parse(r.value);
+        const h = await hashPassword(password);
+        if (acc.username === username.trim() && acc.passHash === h) {
+          onLogin({ role: "admin", id: "admin", name: acc.username }); return;
+        }
+      }
+    } catch (e) {}
+    setError("Identifiant ou mot de passe incorrect.");
   };
 
   const submitClient = async () => {
-    setError("");
-    if (!phone.trim() || !password) { setError("Remplis tous les champs."); return; }
+    setError(""); setSuccess("");
+    if (!identifier.trim() || !password) { setError("Remplis tous les champs."); return; }
     setBusy(true);
     try {
       if (mode === "signup") {
         if (!name.trim()) { setError("Indique ton nom."); return; }
-        if (password.length < 4) { setError("Mot de passe trop court (4 caractères min)."); return; }
+        const pwdErr = validatePassword(password);
+        if (pwdErr) { setError(pwdErr); return; }
         if (password !== confirm) { setError("Les mots de passe ne correspondent pas."); return; }
-        let existing = null;
-        try { existing = await findClientByPhone(phone); } catch (e) {}
-        if (existing) { setError("Un compte existe déjà avec ce numéro. Connecte-toi."); return; }
+        const existing = await findClientByIdentifier(identifier);
+        if (existing) { setError("Un compte existe déjà. Connecte-toi."); return; }
         const passHash = await hashPassword(password);
         const id = uid();
-        const account = { id, name: name.trim(), phone: phone.trim(), passHash, createdAt: new Date().toISOString() };
-        try { await window.storage.set(`auth:client:${id}`, JSON.stringify(account)); } catch (e) {}
-        onLogin({ role: "client", id, name: account.name, phone: account.phone });
+        const isMailId = isEmail(identifier);
+        const account = {
+          id, name: name.trim(),
+          phone: isMailId ? "" : identifier.trim(),
+          email: isMailId ? identifier.trim() : "",
+          identifier: identifier.trim(),
+          passHash, createdAt: new Date().toISOString()
+        };
+        await window.storage.set(`auth:client:${id}`, JSON.stringify(account));
+        onLogin({ role: "client", id, name: account.name, phone: account.phone, email: account.email });
       } else {
-        let account = null;
-        try { account = await findClientByPhone(phone); } catch (e) {}
-        if (!account) { setError("Aucun compte trouvé pour ce numéro."); return; }
+        const account = await findClientByIdentifier(identifier);
+        if (!account) { setError("Aucun compte trouvé. Vérifie ton identifiant."); return; }
         const passHash = await hashPassword(password);
         if (account.passHash !== passHash) { setError("Mot de passe incorrect."); return; }
-        onLogin({ role: "client", id: account.id, name: account.name, phone: account.phone });
+        onLogin({ role: "client", id: account.id, name: account.name, phone: account.phone, email: account.email || "" });
       }
     } catch (e) {
       setError("Une erreur est survenue, réessaie.");
@@ -1370,16 +1494,36 @@ function AuthScreen({ onLogin }) {
     }
   };
 
+  const submitForgot = async () => {
+    setError(""); setSuccess("");
+    if (!identifier.trim()) { setError("Indique ton téléphone ou email."); return; }
+    setBusy(true);
+    try {
+      const account = await findClientByIdentifier(identifier);
+      if (!account) { setError("Aucun compte trouvé pour cet identifiant."); return; }
+      // Store reset request
+      const token = uid() + uid();
+      await window.storage.set(`reset:${account.id}`, JSON.stringify({ token, createdAt: new Date().toISOString() }));
+      setSuccess(`Demande envoyée ! Contacte le salon (Locks by Slo) en indiquant ton nom "${account.name}" pour recevoir ton nouveau mot de passe.`);
+    } catch (e) {
+      setError("Erreur, réessaie.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const strength = pwdStrength();
+
   return (
-    <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'Outfit', 'Segoe UI', sans-serif", display: "flex", alignItems: "center", justifyContent: isDesktop ? "center" : "center", padding: isDesktop ? 40 : 20, position: "relative" }}>
+    <div style={{ minHeight: "100vh", background: BG, color: TEXT, fontFamily: "'Outfit', 'Segoe UI', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: isDesktop ? 40 : 20 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap');
-        * { box-sizing: border-box; }
-        .btn { transition: all .15s ease; cursor: pointer; }
-        .btn:active { transform: scale(0.97); }
+        * { box-sizing: border-box; } body { margin: 0; }
+        .btn { transition: all .15s ease; cursor: pointer; } .btn:active { transform: scale(0.97); }
       `}</style>
 
       <div style={{ width: "100%", maxWidth: isDesktop ? 460 : 380 }}>
+        {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 26 }}>
           <Crown size={30} color={GOLD} strokeWidth={1.8} style={{ marginBottom: 8 }} />
           <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 800, letterSpacing: 1, color: GOLD_LIGHT }}>
@@ -1388,6 +1532,7 @@ function AuthScreen({ onLogin }) {
           <div style={{ fontSize: 11.5, color: TEXT_MUTED, marginTop: 4 }}>Des locks, votre style, votre identité</div>
         </div>
 
+        {/* Role tabs */}
         <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
           <button className="btn" onClick={() => switchRole("client")} style={{
             flex: 1, padding: "10px", borderRadius: 10, border: `1px solid ${role === "client" ? GOLD : BORDER}`,
@@ -1406,11 +1551,8 @@ function AuthScreen({ onLogin }) {
         <div style={{ background: BG2, border: `1px solid ${BORDER}`, borderRadius: 14, padding: 20 }}>
           {role === "admin" ? (
             <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: "50%", background: "rgba(201,162,89,0.12)",
-                  border: `1px solid #3a3226`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(201,162,89,0.12)", border: `1px solid #3a3226`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <ShieldCheck size={17} color={GOLD} />
                 </div>
                 <div>
@@ -1418,71 +1560,118 @@ function AuthScreen({ onLogin }) {
                   <div style={{ fontSize: 11, color: TEXT_MUTED }}>Réservé à Locks by Slo</div>
                 </div>
               </div>
-
-              <div style={{ height: 1, background: "#2a2418", margin: "14px 0" }} />
-
-              <div>
-                <Field label="Identifiant">
-                  <input
-                    value={username}
-                    onChange={(e) => { setUsername(e.target.value); setError(""); }}
-                    onKeyDown={(e) => e.key === "Enter" && submitAdmin()}
-                    placeholder="Identifiant"
-                    style={inputStyle}
-                  />
-                </Field>
-                <Field label="Mot de passe">
-                  <input
-                    type="password"
-                    value={password}
+              <div style={{ height: 1, background: BORDER, marginBottom: 14 }} />
+              <Field label="Identifiant">
+                <input value={username} onChange={(e) => { setUsername(e.target.value); setError(""); }}
+                  onKeyDown={(e) => e.key === "Enter" && submitAdmin()}
+                  placeholder="Identifiant" style={inputStyle} />
+              </Field>
+              <Field label="Mot de passe">
+                <div style={{ position: "relative" }}>
+                  <input type={showPwd ? "text" : "password"} value={password}
                     onChange={(e) => { setPassword(e.target.value); setError(""); }}
                     onKeyDown={(e) => e.key === "Enter" && submitAdmin()}
-                    placeholder="••••••••"
-                    style={inputStyle}
-                  />
-                </Field>
-                {error && <div style={errorStyle}><AlertTriangle size={13} /> {error}</div>}
-                <button onClick={submitAdmin} disabled={busy} className="btn" style={submitBtnStyle}>
-                  <Lock size={16} /> Se connecter
-                </button>
-              </div>
+                    placeholder="••••••••" style={{ ...inputStyle, paddingRight: 40 }} />
+                  <button onClick={() => setShowPwd(p => !p)} style={{ position: "absolute", right: 10, top: 11, background: "none", border: "none", color: TEXT_MUTED, cursor: "pointer" }}>
+                    {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </Field>
+              {error && <div style={errorStyle}><AlertTriangle size={13} /> {error}</div>}
+              <button onClick={submitAdmin} disabled={busy} className="btn" style={submitBtnStyle}>
+                <Lock size={16} /> Se connecter
+              </button>
             </>
           ) : (
             <>
-              <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-                <button type="button" onClick={() => setMode("login")} style={{
-                  flex: 1, padding: "7px", borderRadius: 8, border: "none", background: "none",
-                  color: mode === "login" ? GOLD_LIGHT : "#6b5d44", fontSize: 12.5, fontWeight: 600,
-                  borderBottom: `2px solid ${mode === "login" ? GOLD : "transparent"}`, cursor: "pointer",
-                }}>Connexion</button>
-                <button type="button" onClick={() => setMode("signup")} style={{
-                  flex: 1, padding: "7px", borderRadius: 8, border: "none", background: "none",
-                  color: mode === "signup" ? GOLD_LIGHT : "#6b5d44", fontSize: 12.5, fontWeight: 600,
-                  borderBottom: `2px solid ${mode === "signup" ? GOLD : "transparent"}`, cursor: "pointer",
-                }}>Créer un compte</button>
-              </div>
-              <div>
-                {mode === "signup" && (
-                  <Field label="Nom">
-                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ton nom" style={inputStyle} />
+              {/* Client mode tabs */}
+              {mode !== "forgot" && (
+                <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+                  <button onClick={() => { setMode("login"); setError(""); setSuccess(""); }} style={{
+                    flex: 1, padding: "7px", border: "none", background: "none",
+                    color: mode === "login" ? GOLD_LIGHT : TEXT_MUTED, fontSize: 12.5, fontWeight: 600,
+                    borderBottom: `2px solid ${mode === "login" ? GOLD : "transparent"}`, cursor: "pointer",
+                  }}>Connexion</button>
+                  <button onClick={() => { setMode("signup"); setError(""); setSuccess(""); }} style={{
+                    flex: 1, padding: "7px", border: "none", background: "none",
+                    color: mode === "signup" ? GOLD_LIGHT : TEXT_MUTED, fontSize: 12.5, fontWeight: 600,
+                    borderBottom: `2px solid ${mode === "signup" ? GOLD : "transparent"}`, cursor: "pointer",
+                  }}>Créer un compte</button>
+                </div>
+              )}
+
+              {mode === "forgot" ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                    <button onClick={() => { setMode("login"); setError(""); setSuccess(""); }} style={{ background: "none", border: "none", color: TEXT_MUTED, cursor: "pointer" }}>←</button>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: GOLD_LIGHT }}>Mot de passe oublié</div>
+                  </div>
+                  <Field label="Téléphone ou adresse email">
+                    <div style={{ position: "relative" }}>
+                      {isEmail(identifier) ? <Mail size={14} color={TEXT_MUTED} style={{ position: "absolute", left: 11, top: 13 }} /> : <Phone size={14} color={TEXT_MUTED} style={{ position: "absolute", left: 11, top: 13 }} />}
+                      <input value={identifier} onChange={(e) => { setIdentifier(e.target.value); setError(""); setSuccess(""); }}
+                        placeholder="06 12 34 56 78 ou email@..." style={{ ...inputStyle, paddingLeft: 32 }} />
+                    </div>
                   </Field>
-                )}
-                <Field label="Téléphone">
-                  <input value={phone} onChange={(e) => { setPhone(e.target.value); setError(""); }} placeholder="06 12 34 56 78" style={inputStyle} />
-                </Field>
-                <Field label="Mot de passe">
-                  <input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} onKeyDown={(e) => e.key === "Enter" && submitClient()} placeholder="••••••" style={inputStyle} />
-                </Field>
-                {mode === "signup" && (
-                  <Field label="Confirmer le mot de passe">
-                    <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••" style={inputStyle} />
+                  {error && <div style={errorStyle}><AlertTriangle size={13} /> {error}</div>}
+                  {success && <div style={{ ...errorStyle, color: "#9fe0ad", background: "rgba(63,155,90,0.15)", border: "1px solid #2d6a3f" }}><Check size={13} /> {success}</div>}
+                  <button onClick={submitForgot} disabled={busy} className="btn" style={submitBtnStyle}>
+                    <RefreshCw size={16} /> {busy ? "Envoi…" : "Envoyer la demande"}
+                  </button>
+                </>
+              ) : (
+                <div>
+                  {mode === "signup" && (
+                    <Field label="Nom complet">
+                      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ton nom" style={inputStyle} />
+                    </Field>
+                  )}
+                  <Field label="Téléphone ou adresse email">
+                    <div style={{ position: "relative" }}>
+                      {isEmail(identifier) ? <Mail size={14} color={TEXT_MUTED} style={{ position: "absolute", left: 11, top: 13 }} /> : <Phone size={14} color={TEXT_MUTED} style={{ position: "absolute", left: 11, top: 13 }} />}
+                      <input value={identifier} onChange={(e) => { setIdentifier(e.target.value); setError(""); }}
+                        placeholder="06 12 34 56 78 ou email@..." style={{ ...inputStyle, paddingLeft: 32 }} />
+                    </div>
                   </Field>
-                )}
-                {error && <div style={errorStyle}><AlertTriangle size={13} /> {error}</div>}
-                <button onClick={submitClient} disabled={busy} className="btn" style={submitBtnStyle}>
-                  {mode === "signup" ? <><UserPlus size={16} /> Créer mon compte</> : <><Lock size={16} /> Se connecter</>}
-                </button>
-              </div>
+                  <Field label="Mot de passe">
+                    <div style={{ position: "relative" }}>
+                      <input type={showPwd ? "text" : "password"} value={password}
+                        onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                        onKeyDown={(e) => e.key === "Enter" && submitClient()}
+                        placeholder={mode === "signup" ? "8 caractères min, 1 lettre, 1 chiffre" : "••••••••"}
+                        style={{ ...inputStyle, paddingRight: 40 }} />
+                      <button onClick={() => setShowPwd(p => !p)} style={{ position: "absolute", right: 10, top: 11, background: "none", border: "none", color: TEXT_MUTED, cursor: "pointer" }}>
+                        {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {mode === "signup" && strength && (
+                      <div style={{ fontSize: 11, marginTop: 4, color: strength.ok ? "#9fe0ad" : "#f0a030" }}>{strength.msg}</div>
+                    )}
+                  </Field>
+                  {mode === "signup" && (
+                    <Field label="Confirmer le mot de passe">
+                      <div style={{ position: "relative" }}>
+                        <input type={showConfirm ? "text" : "password"} value={confirm}
+                          onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••"
+                          style={{ ...inputStyle, paddingRight: 40 }} />
+                        <button onClick={() => setShowConfirm(p => !p)} style={{ position: "absolute", right: 10, top: 11, background: "none", border: "none", color: TEXT_MUTED, cursor: "pointer" }}>
+                          {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </Field>
+                  )}
+                  {error && <div style={errorStyle}><AlertTriangle size={13} /> {error}</div>}
+                  <button onClick={submitClient} disabled={busy} className="btn" style={submitBtnStyle}>
+                    {mode === "signup" ? <><UserPlus size={16} /> Créer mon compte</> : <><Lock size={16} /> {busy ? "Connexion…" : "Se connecter"}</>}
+                  </button>
+                  {mode === "login" && (
+                    <button onClick={() => { setMode("forgot"); setError(""); setSuccess(""); }} style={{
+                      width: "100%", marginTop: 10, background: "none", border: "none",
+                      color: TEXT_MUTED, fontSize: 12, cursor: "pointer", textDecoration: "underline",
+                    }}>Mot de passe oublié ?</button>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
